@@ -6,14 +6,14 @@ from github import Auth
 from dotenv import load_dotenv
 
 
-def create_changelog(auth_token, repo_name):
+def create_changelog(auth_token, organization, repo_name, file_name):
     auth = Auth.Token(auth_token)
 
     git = Github(auth=auth)
     try:
-        repo = git.get_organization("XPGAMESLLC").get_repo(name=repo_name)
+        repo = git.get_organization(organization).get_repo(name=repo_name)
     except:
-        return
+        raise Exception(f"Repository not found for {organization}/{repo_name}")
 
     releases = repo.get_releases()
     try:
@@ -49,8 +49,7 @@ def create_changelog(auth_token, repo_name):
         key=lambda i: i.closed_at,
         reverse=True
     )
-    totalIssues = len(list(sorted_issues))
-    for index, issue in enumerate(sorted_issues):
+    for _, issue in enumerate(sorted_issues):
         if issue.pull_request:
             continue
         if issue.created_at > last_date:
@@ -59,8 +58,6 @@ def create_changelog(auth_token, repo_name):
             break
         closed_issues.append(issue)
 
-    # create markdown file with lists of closed opened and updated issues, up them in a list of links to issues
-    file_name = "release_body.txt"
     with open(file_name, "w") as f:
         if (len(finished_prs) > 0):
             f.write(f"# PRs\n\n")
@@ -81,21 +78,28 @@ def create_changelog(auth_token, repo_name):
                 f.write(f"\n## Updated Issues ({len(updated_issues)})\n")
                 for issue in updated_issues:
                     f.write(f"- [{issue.title}]({issue.html_url})\n")
-    return file_name
+    return
 
 
 def parse_args(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Generate a changelog from GitHub issues.")
+    parser.add_argument("organization", type=str, help="Name of the GitHub organization.")
     parser.add_argument("repo_name", type=str, help="Name of the GitHub repository.")
+    parser.add_argument("--file_name", type=str, default="body.txt", help="Output file name for the changelog.")
     args = parser.parse_args(argv)
-    return args.repo_name
+    return args.repo_name, args.organization, args.file_name
 
 def main():
     if os.getenv('GITHUB_ACTIONS') != 'true':
         load_dotenv()
     auth_token = os.getenv('AUTH_TOKEN')
-    repo_name = parse_args()
-    file_name = create_changelog(auth_token, repo_name)
+    if not auth_token:
+        raise Exception("AUTH_TOKEN environment variable not set.")
+    repo_name, organization, file_name = parse_args()
+    try:
+        create_changelog(auth_token, organization, repo_name, file_name)
+    except Exception as e:
+        print(f"Error generating changelog: {e}")
 
 if __name__ == "__main__":
     main()
