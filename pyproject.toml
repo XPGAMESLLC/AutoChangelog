@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autochangelog"
+version = "0.1.0"
+description = "A tool to generate release notes"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PyGithub>=1.77",
+    "python-dotenv>=1.0"
+]
+
+[project.scripts]
+generate-release-notes = "releasenotes.generator:main"

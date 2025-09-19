@@ -1,0 +1,9 @@
+pyproject.toml
+src/autochangelog.egg-info/PKG-INFO
+src/autochangelog.egg-info/SOURCES.txt
+src/autochangelog.egg-info/dependency_links.txt
+src/autochangelog.egg-info/entry_points.txt
+src/autochangelog.egg-info/requires.txt
+src/autochangelog.egg-info/top_level.txt
+src/releasenotes/__init__.py
+src/releasenotes/generator.py
