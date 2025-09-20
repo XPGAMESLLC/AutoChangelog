@@ -21,6 +21,8 @@ def create_changelog(auth_token, organization, repo_name, file_name):
         previous_date = releases[0].created_at
     except:
         previous_date = repo.created_at
+    previous_tag = releases[0].tag_name if releases else None
+    current_tag = repo.get_tags()[0].name if repo.get_tags().totalCount > 0 else None
     closed_issues = []
     opened_issues = []
     updated_issues = []
@@ -59,11 +61,15 @@ def create_changelog(auth_token, organization, repo_name, file_name):
         closed_issues.append(issue)
 
     with open(file_name, "w") as f:
+        if previous_tag != None and current_tag != None:
+            f.write(f"**Full Changelog**: https://github.com/{organization}/{repo_name}/compare/{previous_tag}...{current_tag}\n\n")
         if (len(finished_prs) > 0):
             f.write(f"# PRs\n\n")
             for pr in finished_prs:
                 f.write(f"- [{pr.title}]({pr.html_url})\n")
             f.write("\n\n")
+        else:
+            f.write("# PRs\n\nNo merged PRs\n\n")
         if (len(closed_issues) + len(opened_issues) + len(updated_issues)) > 0:
             f.write(f"# Issues\n\n")
             if (len(closed_issues) > 0):
@@ -78,6 +84,8 @@ def create_changelog(auth_token, organization, repo_name, file_name):
                 f.write(f"\n## Updated Issues ({len(updated_issues)})\n")
                 for issue in updated_issues:
                     f.write(f"- [{issue.title}]({issue.html_url})\n")
+        else:
+            f.write("# Issues\n\nNo issue changes\n")
     return
 
 
