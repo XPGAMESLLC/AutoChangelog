@@ -15,7 +15,8 @@ def create_changelog(auth_token, organization, repo_name, file_name):
     except:
         raise Exception(f"Repository not found for {organization}/{repo_name}")
 
-    releases = repo.get_releases()
+    get_releases = repo.get_releases()
+    releases = [r for r in get_releases if not r.prerelease]
     try:
         last_date = datetime.now(timezone.utc)
         previous_date = releases[0].created_at
