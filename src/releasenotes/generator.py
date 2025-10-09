@@ -15,15 +15,17 @@ def create_changelog(auth_token, organization, repo_name, file_name):
     except:
         raise Exception(f"Repository not found for {organization}/{repo_name}")
 
-    get_releases = repo.get_releases()
-    releases = [r for r in get_releases if not r.prerelease]
+    release = repo.get_latest_release()
+    # releases = [r for r in get_releases if not r.prerelease]
     try:
         last_date = datetime.now(timezone.utc)
-        previous_date = releases[0].created_at
+        previous_date = release.created_at
     except:
         previous_date = repo.created_at
-    previous_tag = releases[0].tag_name if releases else None
-    current_tag = repo.get_tags()[0].name if repo.get_tags().totalCount > 0 else None
+    previous_tag = release.tag_name if release else None
+    tags = list(repo.get_tags())
+    tags.sort(key=lambda t: t.commit.commit.author.date, reverse=True)
+    current_tag = tags[0].name if len(tags) > 0 else None
     closed_issues = []
     opened_issues = []
     updated_issues = []
