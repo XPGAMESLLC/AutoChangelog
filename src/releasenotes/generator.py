@@ -101,7 +101,8 @@ def _summarize_changes_with_chatgpt(
         return None
 
     base_url = os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    endpoint = f"{base_url}/chat/completions"
+    chat_endpoint = f"{base_url}/chat/completions"
+    responses_endpoint = f"{base_url}/responses"
 
     max_items = max(10, ai_max_items)
     pr_items = [pr.title for pr in prs][:max_items]
@@ -143,7 +144,7 @@ def _summarize_changes_with_chatgpt(
         f"{json.dumps(payload_context, ensure_ascii=False)}"
     )
 
-    body = {
+    chat_body = {
         "model": ai_model,
         "messages": [
             {"role": "system", "content": system_prompt},
@@ -153,21 +154,80 @@ def _summarize_changes_with_chatgpt(
         "max_tokens": 500,
     }
 
-    http_request = request.Request(
-        endpoint,
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
+    responses_body = {
+        "model": ai_model,
+        "input": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+        "max_output_tokens": 500,
+    }
+
+    request_headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
 
     try:
-        with request.urlopen(http_request, timeout=45) as response:
+        chat_request = request.Request(
+            chat_endpoint,
+            data=json.dumps(chat_body).encode("utf-8"),
+            headers=request_headers,
+            method="POST",
+        )
+        with request.urlopen(chat_request, timeout=45) as response:
             response_payload = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
-        print(f"AI summary failed (HTTP {error.code}). Continuing without AI summary.")
+        error_body = ""
+        try:
+            error_body = error.read().decode("utf-8", errors="ignore")
+        except Exception:
+            error_body = ""
+
+        if error.code == 400:
+            try:
+                responses_request = request.Request(
+                    responses_endpoint,
+                    data=json.dumps(responses_body).encode("utf-8"),
+                    headers=request_headers,
+                    method="POST",
+                )
+                with request.urlopen(responses_request, timeout=45) as response:
+                    responses_payload = json.loads(response.read().decode("utf-8"))
+
+                content = responses_payload.get("output_text", "").strip()
+                if content:
+                    return content
+
+                output_items = responses_payload.get("output", [])
+                for item in output_items:
+                    if item.get("type") != "message":
+                        continue
+                    for content_item in item.get("content", []):
+                        if content_item.get("type") in {"output_text", "text"}:
+                            text_value = content_item.get("text", "").strip()
+                            if text_value:
+                                return text_value
+
+                print("AI summary failed (Responses API returned no text). Continuing without AI summary.")
+                return None
+            except HTTPError as fallback_error:
+                fallback_body = ""
+                try:
+                    fallback_body = fallback_error.read().decode("utf-8", errors="ignore")
+                except Exception:
+                    fallback_body = ""
+                print(
+                    f"AI summary failed (HTTP 400, fallback HTTP {fallback_error.code}). "
+                    f"Chat error: {error_body[:400]} Fallback error: {fallback_body[:400]}"
+                )
+                return None
+            except URLError:
+                print("AI summary failed (Responses API network error). Continuing without AI summary.")
+                return None
+
+        print(f"AI summary failed (HTTP {error.code}): {error_body[:500]}")
         return None
     except URLError:
         print("AI summary failed (network error). Continuing without AI summary.")
