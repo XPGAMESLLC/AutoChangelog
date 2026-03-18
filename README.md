@@ -1,12 +1,3 @@
-Metadata-Version: 2.4
-Name: autochangelog
-Version: 2.0.0
-Summary: A tool to generate release notes
-Requires-Python: >=3.12
-Description-Content-Type: text/markdown
-Requires-Dist: PyGithub>=1.77
-Requires-Dist: python-dotenv>=1.0
-
 # AutoChangelog
 
 Internal tool for generating release notes from GitHub repository activity.
@@ -24,10 +15,30 @@ Internal tool for generating release notes from GitHub repository activity.
 
 This creates `body.txt` in the workflow workspace by default.
 
+### Optional AI summary
+
+```yaml
+- name: Generate release notes with AI summary
+  uses: XPGAMESLLC/AutoChangelog@v2.0.0
+  with:
+    organization: XPGAMESLLC
+    repo_name: Biomes
+    auth_token: ${{ secrets.AUTH_TOKEN }}
+    ai_summary: "true"
+    ai_model: "gpt-4o-mini"
+    ai_api_key: ${{ secrets.AI_API_KEY }}
+```
+
 ## CLI usage
 
 ```bash
 python -m releasenotes.generator XPGAMESLLC Biomes
+```
+
+### CLI with optional AI summary
+
+```bash
+AI_API_KEY=*** python -m releasenotes.generator XPGAMESLLC Biomes --ai-summary --ai-model gpt-4o-mini
 ```
 
 ## Legacy CLI
