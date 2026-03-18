@@ -1,0 +1,170 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "generate-biomes-changelog-ai-check",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-m",
+				"releasenotes.generator",
+				"XPGAMESLLC",
+				"Biomes",
+				"--file_name",
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/body-ai-check.txt",
+				"--ai-summary"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-changelog-ai-final-check",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-m",
+				"releasenotes.generator",
+				"XPGAMESLLC",
+				"Biomes",
+				"--file_name",
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/body.txt",
+				"--ai-summary"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diagnose-ai-env-visibility",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-c",
+				"import os; from dotenv import load_dotenv; print('GITHUB_ACTIONS=', os.getenv('GITHUB_ACTIONS')); load_dotenv(); print('HAS_AI_API_KEY=', bool(os.getenv('AI_API_KEY'))); print('HAS_AUTH_TOKEN=', bool(os.getenv('AUTH_TOKEN')))"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "retry-biomes-ai-summary",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-m",
+				"releasenotes.generator",
+				"XPGAMESLLC",
+				"Biomes",
+				"--file_name",
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/body.txt",
+				"--ai-summary"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "retry-biomes-ai-summary-now",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-m",
+				"releasenotes.generator",
+				"XPGAMESLLC",
+				"Biomes",
+				"--file_name",
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/body.txt",
+				"--ai-summary"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-1.17.4-changelog",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:GITHUB_REF_NAME='1.17.4'; & 'd:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe' -m releasenotes.generator XPGAMESLLC Biomes --file_name 'd:/BobrWork/XPGames/_DEV/AutoChangelog/body-1.17.4.txt'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-biomes-tag-1.17.4",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"-c",
+				"from dotenv import load_dotenv; load_dotenv(); import os; from github import Github, Auth; g=Github(auth=Auth.Token(os.getenv('AUTH_TOKEN'))); repo=g.get_organization('XPGAMESLLC').get_repo('Biomes'); tags=[t.name for t in repo.get_tags()]; print('HAS_1_17_4=', '1.17.4' in tags); print('MATCHES=', [t for t in tags if '1.17.4' in t][:20]); print('FIRST10=', tags[:10])"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-biomes-tag-temp-script",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_check_tag.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-biomes-tag-0174",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_check_tag.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-0.17.4-changelog",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:GITHUB_REF_NAME='0.17.4'; & 'd:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe' -m releasenotes.generator XPGAMESLLC Biomes --file_name 'd:/BobrWork/XPGames/_DEV/AutoChangelog/body-0.17.4.txt'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-0.17.4-via-script",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_generate_historical.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug-biomes-window-0174",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_debug_window.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug-biomes-window-0174-file",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_debug_window.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-0.17.4-direct",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_generate_historical.py"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "generate-biomes-0.17.4-corrected",
+			"type": "shell",
+			"command": "d:/BobrWork/XPGames/_DEV/AutoChangelog/.venv/Scripts/python.exe",
+			"args": [
+				"d:/BobrWork/XPGames/_DEV/AutoChangelog/tmp_generate_historical.py"
+			],
+			"isBackground": false
+		}
+	]
+}

@@ -1,2 +1,3 @@
 [console_scripts]
 generate-release-notes = releasenotes.generator:main
+generate-release-notes-legacy = releasenotes.legacy_generator:main
