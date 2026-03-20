@@ -22,25 +22,21 @@ inputs:
     required: false
     default: "3.12"
   ai_summary:
-    description: "Enable ChatGPT summary section"
+    description: "Enable Claude AI summary section"
     required: false
     default: "false"
   ai_model:
-    description: "ChatGPT model for summaries"
+    description: "Claude model for summaries (e.g., claude-3-5-sonnet-20241022)"
     required: false
-    default: "gpt-4o-mini"
+    default: "claude-3-5-sonnet-20241022"
   ai_max_items:
     description: "Max items per category sent to AI"
     required: false
     default: "120"
   ai_api_key:
-    description: "API key used for ChatGPT summarization"
+    description: "Anthropic API key used for Claude summarization"
     required: false
     default: ""
-  ai_base_url:
-    description: "Optional base URL for OpenAI-compatible endpoint"
-    required: false
-    default: "https://api.openai.com/v1"
 
 runs:
   using: "composite"
@@ -59,7 +55,6 @@ runs:
       env:
         AUTH_TOKEN: ${{ inputs.auth_token }}
         AI_API_KEY: ${{ inputs.ai_api_key }}
-        AI_BASE_URL: ${{ inputs.ai_base_url }}
       run: |
         EXTRA_ARGS=""
         if [ "${{ inputs.ai_summary }}" = "true" ]; then

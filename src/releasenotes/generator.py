@@ -2,9 +2,8 @@ import argparse
 import json
 import os
 from datetime import datetime, timezone
-from urllib import request
-from urllib.error import HTTPError, URLError
 
+from anthropic import Anthropic
 from dotenv import load_dotenv
 from github import Auth
 from github import Github
@@ -81,7 +80,7 @@ def _collect_commit_messages(repo, previous_tag: str | None, current_tag: str | 
     return commit_messages
 
 
-def _summarize_changes_with_chatgpt(
+def _summarize_changes_with_claude(
     *,
     organization: str,
     repo_name: str,
@@ -99,10 +98,6 @@ def _summarize_changes_with_chatgpt(
     if not api_key:
         print("AI summary requested, but AI_API_KEY is not set. Skipping AI summary.")
         return None
-
-    base_url = os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    chat_endpoint = f"{base_url}/chat/completions"
-    responses_endpoint = f"{base_url}/responses"
 
     max_items = max(10, ai_max_items)
     pr_items = [pr.title for pr in prs][:max_items]
@@ -144,101 +139,27 @@ def _summarize_changes_with_chatgpt(
         f"{json.dumps(payload_context, ensure_ascii=False)}"
     )
 
-    chat_body = {
-        "model": ai_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.2,
-        "max_tokens": 500,
-    }
-
-    responses_body = {
-        "model": ai_model,
-        "input": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.2,
-        "max_output_tokens": 500,
-    }
-
-    request_headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        chat_request = request.Request(
-            chat_endpoint,
-            data=json.dumps(chat_body).encode("utf-8"),
-            headers=request_headers,
-            method="POST",
+        client = Anthropic(api_key=api_key)
+        
+        response = client.messages.create(
+            model=ai_model,
+            max_tokens=500,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
         )
-        with request.urlopen(chat_request, timeout=45) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except HTTPError as error:
-        error_body = ""
-        try:
-            error_body = error.read().decode("utf-8", errors="ignore")
-        except Exception:
-            error_body = ""
-
-        if error.code == 400:
-            try:
-                responses_request = request.Request(
-                    responses_endpoint,
-                    data=json.dumps(responses_body).encode("utf-8"),
-                    headers=request_headers,
-                    method="POST",
-                )
-                with request.urlopen(responses_request, timeout=45) as response:
-                    responses_payload = json.loads(response.read().decode("utf-8"))
-
-                content = responses_payload.get("output_text", "").strip()
-                if content:
-                    return content
-
-                output_items = responses_payload.get("output", [])
-                for item in output_items:
-                    if item.get("type") != "message":
-                        continue
-                    for content_item in item.get("content", []):
-                        if content_item.get("type") in {"output_text", "text"}:
-                            text_value = content_item.get("text", "").strip()
-                            if text_value:
-                                return text_value
-
-                print("AI summary failed (Responses API returned no text). Continuing without AI summary.")
-                return None
-            except HTTPError as fallback_error:
-                fallback_body = ""
-                try:
-                    fallback_body = fallback_error.read().decode("utf-8", errors="ignore")
-                except Exception:
-                    fallback_body = ""
-                print(
-                    f"AI summary failed (HTTP 400, fallback HTTP {fallback_error.code}). "
-                    f"Chat error: {error_body[:400]} Fallback error: {fallback_body[:400]}"
-                )
-                return None
-            except URLError:
-                print("AI summary failed (Responses API network error). Continuing without AI summary.")
-                return None
-
-        print(f"AI summary failed (HTTP {error.code}): {error_body[:500]}")
-        return None
-    except URLError:
-        print("AI summary failed (network error). Continuing without AI summary.")
+    except Exception as error:
+        print(f"AI summary failed: {str(error)[:500]}. Continuing without AI summary.")
         return None
 
-    choices = response_payload.get("choices", [])
-    if not choices:
+    if not response.content:
         print("AI summary failed (empty model response). Continuing without AI summary.")
         return None
 
-    content = choices[0].get("message", {}).get("content", "").strip()
+    content = response.content[0].text.strip()
     if not content:
         print("AI summary failed (blank model response). Continuing without AI summary.")
         return None
@@ -251,7 +172,7 @@ def create_changelog(
     repo_name: str,
     file_name: str,
     ai_summary: bool = False,
-    ai_model: str = "gpt-4o-mini",
+    ai_model: str = "claude-3-5-sonnet-20241022",
     ai_max_items: int = 120,
 ) -> None:
     client = Github(auth=Auth.Token(auth_token))
@@ -300,7 +221,7 @@ def create_changelog(
 
     ai_summary_markdown: str | None = None
     if ai_summary:
-        ai_summary_markdown = _summarize_changes_with_chatgpt(
+        ai_summary_markdown = _summarize_changes_with_claude(
             organization=organization,
             repo_name=repo_name,
             previous_tag=previous_tag,
@@ -358,8 +279,8 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("organization", type=str, help="Name of the GitHub organization.")
     parser.add_argument("repo_name", type=str, help="Name of the GitHub repository.")
     parser.add_argument("--file_name", type=str, default="body.txt", help="Output file name for the changelog.")
-    parser.add_argument("--ai-summary", action="store_true", help="Enable ChatGPT summary section.")
-    parser.add_argument("--ai-model", type=str, default=os.getenv("AI_MODEL", "gpt-4o-mini"), help="ChatGPT model name.")
+    parser.add_argument("--ai-summary", action="store_true", help="Enable Claude AI summary section.")
+    parser.add_argument("--ai-model", type=str, default=os.getenv("AI_MODEL", "claude-3-5-sonnet-20241022"), help="Claude model name.")
     parser.add_argument("--ai-max-items", type=int, default=120, help="Max items per category sent to AI.")
     return parser.parse_args(argv)
 
