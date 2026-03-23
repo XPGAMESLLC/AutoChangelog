@@ -172,7 +172,7 @@ def create_changelog(
     repo_name: str,
     file_name: str,
     ai_summary: bool = False,
-    ai_model: str = "claude-3-5-sonnet-20241022",
+    ai_model: str = "claude-haiku-4-5-20251001",
     ai_max_items: int = 120,
 ) -> None:
     client = Github(auth=Auth.Token(auth_token))
@@ -189,7 +189,7 @@ def create_changelog(
 
     open_issues = repo.get_issues(state="open", since=previous_date)
     for issue in open_issues:
-        if issue.pull_request:
+        if issue.raw_data.get("pull_request"):
             continue
         if issue.created_at > current_date:
             continue
@@ -203,14 +203,14 @@ def create_changelog(
         if pr.closed_at and previous_date < pr.closed_at <= current_date:
             finished_prs.append(pr)
 
-    issues_array = repo.get_issues(state="closed")
+    issues_array = repo.get_issues(state="closed", since=previous_date)
     sorted_issues = sorted(
         [issue for issue in issues_array if issue.closed_at],
         key=lambda issue: issue.closed_at,
         reverse=True,
     )
     for issue in sorted_issues:
-        if issue.pull_request:
+        if issue.raw_data.get("pull_request"):
             continue
         if issue.created_at > current_date:
             continue
@@ -280,7 +280,7 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("repo_name", type=str, help="Name of the GitHub repository.")
     parser.add_argument("--file_name", type=str, default="body.txt", help="Output file name for the changelog.")
     parser.add_argument("--ai-summary", action="store_true", help="Enable Claude AI summary section.")
-    parser.add_argument("--ai-model", type=str, default=os.getenv("AI_MODEL", "claude-3-5-sonnet-20241022"), help="Claude model name.")
+    parser.add_argument("--ai-model", type=str, default=os.getenv("AI_MODEL", "claude-haiku-4-5-20251001"), help="Claude model name.")
     parser.add_argument("--ai-max-items", type=int, default=120, help="Max items per category sent to AI.")
     return parser.parse_args(argv)
 

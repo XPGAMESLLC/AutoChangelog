@@ -26,9 +26,9 @@ inputs:
     required: false
     default: "false"
   ai_model:
-    description: "Claude model for summaries (e.g., claude-3-5-sonnet-20241022)"
+    description: "Claude model for summaries (e.g., claude-haiku-4-5-20251001)"
     required: false
-    default: "claude-3-5-sonnet-20241022"
+    default: "claude-haiku-4-5-20251001"
   ai_max_items:
     description: "Max items per category sent to AI"
     required: false

@@ -6,7 +6,7 @@ Internal tool for generating release notes from GitHub repository activity.
 
 ```yaml
 - name: Generate release notes
-  uses: XPGAMESLLC/AutoChangelog@v1.0.0
+  uses: XPGAMESLLC/AutoChangelog@v1.0.4
   with:
     organization: XPGAMESLLC
     repo_name: Biomes
@@ -19,14 +19,15 @@ This creates `body.txt` in the workflow workspace by default.
 
 ```yaml
 - name: Generate release notes with AI summary
-  uses: XPGAMESLLC/AutoChangelog@v1.0.0
+  uses: XPGAMESLLC/AutoChangelog@v1.0.4
   with:
     organization: XPGAMESLLC
     repo_name: Biomes
     auth_token: ${{ secrets.AUTH_TOKEN }}
     ai_summary: "true"
-    ai_model: "gpt-5.4-nano"
     ai_api_key: ${{ secrets.AI_API_KEY }}
+    # ai_model is optional, defaults to claude-haiku-4-5-20251001
+    # ai_model: "claude-haiku-4-5-20251001"
 ```
 
 ## CLI usage
@@ -38,7 +39,8 @@ python -m releasenotes.generator XPGAMESLLC Biomes
 ### CLI with optional AI summary
 
 ```bash
-AI_API_KEY=*** python -m releasenotes.generator XPGAMESLLC Biomes --ai-summary --ai-model gpt-4o-mini
+# --ai-model is optional, defaults to claude-haiku-4-5-20251001
+AI_API_KEY=*** python -m releasenotes.generator XPGAMESLLC Biomes --ai-summary
 ```
 
 ## Legacy CLI
