@@ -37,6 +37,18 @@ inputs:
     description: "Anthropic API key used for Claude summarization"
     required: false
     default: ""
+  discord_webhook_url:
+    description: "Discord webhook URL used to send changelog notifications"
+    required: false
+    default: ""
+  discord_role_tag:
+    description: "Optional Discord role mention, e.g. <@&1234567890>"
+    required: false
+    default: ""
+  discord_role_tags:
+    description: "Optional multiple role mentions separated by commas/newlines/semicolons"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -60,4 +72,4 @@ runs:
         if [ "${{ inputs.ai_summary }}" = "true" ]; then
           EXTRA_ARGS="--ai-summary --ai-model ${{ inputs.ai_model }} --ai-max-items ${{ inputs.ai_max_items }}"
         fi
-        python -m releasenotes.generator "${{ inputs.organization }}" "${{ inputs.repo_name }}" --file_name "${{ inputs.file_name }}" $EXTRA_ARGS
+        python -m releasenotes.generator "${{ inputs.organization }}" "${{ inputs.repo_name }}" --file_name "${{ inputs.file_name }}" --discord-webhook-url "${{ inputs.discord_webhook_url }}" --discord-role-tag "${{ inputs.discord_role_tag }}" --discord-role-tags "${{ inputs.discord_role_tags }}" $EXTRA_ARGS

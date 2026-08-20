@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 from anthropic import Anthropic
@@ -166,6 +168,122 @@ def _summarize_changes_with_claude(
     return content
 
 
+def _send_discord_changelog(
+    *,
+    webhook_url: str,
+    role_tags: list[str],
+    organization: str,
+    repo_name: str,
+    version: str,
+    changelog_path: str,
+) -> None:
+    webhook_url = webhook_url.strip().strip('"').strip("'")
+
+    with open(changelog_path, "r", encoding="utf-8") as file_handle:
+        changelog = file_handle.read().strip()
+
+    if version and version != "latest":
+        release_page = f"https://github.com/{organization}/{repo_name}/releases/tag/{version}"
+    else:
+        release_page = f"https://github.com/{organization}/{repo_name}/releases"
+
+    title0 = f"# 🎉 **New release for {repo_name}!**".strip()
+    title1 = f"📦 Grab it here: [{version}]({release_page})".strip()
+    header_lines = [title0, title1]
+    header = "\n".join(header_lines)
+    role_footer = " ".join(role_tags).strip()
+
+    # Discord webhook text limit is 2000 chars; keep headroom to avoid edge errors.
+    max_len = 1900
+    chunks: list[str] = []
+    remaining = changelog
+    while remaining:
+        if len(remaining) <= max_len:
+            chunks.append(remaining)
+            break
+        split_at = remaining.rfind("\n", 0, max_len)
+        if split_at <= 0:
+            split_at = max_len
+        chunks.append(remaining[:split_at].rstrip())
+        remaining = remaining[split_at:].lstrip("\n")
+
+    if not chunks:
+        chunks = ["No changelog content generated."]
+
+    total = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        if total == 1:
+            content = f"{header}\n\n{chunk}".strip()
+        elif index == 1:
+            content = f"{header}\n\n{chunk}\n\n(1/{total})".strip()
+        else:
+            content = f"{title0} (cont. {index}/{total})\n\n{chunk}".strip()
+
+        if role_footer and index == total:
+            content = f"{content}\n\n{role_footer}".strip()
+
+        payload = json.dumps({"content": content}).encode("utf-8")
+        request = urllib.request.Request(
+            webhook_url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "AutoChangelog-WebhookClient/1.0 (+https://github.com/XPGAMESLLC/AutoChangelog)",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                status = response.getcode()
+                if status < 200 or status >= 300:
+                    raise RuntimeError(f"Discord webhook returned status {status}")
+        except urllib.error.HTTPError as error:
+            response_body = ""
+            try:
+                response_body = error.read().decode("utf-8", errors="replace").strip()
+            except Exception:
+                response_body = ""
+
+            hint = ""
+            if error.code == 403:
+                hint = (
+                    "403 Forbidden from Discord webhook. Common causes: webhook was regenerated/revoked, "
+                    "webhook belongs to a channel where posting is restricted, or the URL token is no longer valid."
+                )
+                if "1010" in response_body:
+                    hint += (
+                        " Discord/Cloudflare returned code 1010 (client blocked). "
+                        "Try sending via PowerShell Invoke-RestMethod from the same machine/network to verify if this "
+                        "is a local network/client signature block."
+                    )
+            elif error.code == 404:
+                hint = "404 from Discord webhook. The webhook URL is usually invalid or deleted."
+
+            details = f"Discord webhook HTTP {error.code}: {error.reason}"
+            if response_body:
+                details += f" | response: {response_body[:500]}"
+            if hint:
+                details += f" | hint: {hint}"
+            raise RuntimeError(details) from error
+
+    print(f"Sent {total} Discord message(s).")
+
+
+def _parse_role_tags(single_tag: str, multi_tags: str) -> list[str]:
+    values = [single_tag or ""]
+    if multi_tags:
+        normalized = multi_tags.replace("\n", ",").replace(";", ",")
+        values.extend(normalized.split(","))
+
+    parsed: list[str] = []
+    for value in values:
+        role = value.strip()
+        if role and role not in parsed:
+            parsed.append(role)
+    return parsed
+
+
 def create_changelog(
     auth_token: str,
     organization: str,
@@ -282,6 +400,24 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("--ai-summary", action="store_true", help="Enable Claude AI summary section.")
     parser.add_argument("--ai-model", type=str, default=os.getenv("AI_MODEL", "claude-haiku-4-5-20251001"), help="Claude model name.")
     parser.add_argument("--ai-max-items", type=int, default=120, help="Max items per category sent to AI.")
+    parser.add_argument(
+        "--discord-webhook-url",
+        type=str,
+        default=os.getenv("DISCORD_WEBHOOK_URL", ""),
+        help="Discord webhook URL used to send changelog notifications.",
+    )
+    parser.add_argument(
+        "--discord-role-tag",
+        type=str,
+        default=os.getenv("DISCORD_ROLE_TAG", ""),
+        help="Optional Discord role mention, e.g. <@&1234567890>",
+    )
+    parser.add_argument(
+        "--discord-role-tags",
+        type=str,
+        default=os.getenv("DISCORD_ROLE_TAGS", ""),
+        help="Optional list of role mentions separated by commas/newlines/semicolons.",
+    )
     return parser.parse_args(argv)
 
 
@@ -304,6 +440,19 @@ def main() -> None:
             ai_model=args.ai_model,
             ai_max_items=args.ai_max_items,
         )
+
+        normalized_webhook_url = args.discord_webhook_url.strip().strip('"').strip("'")
+        if normalized_webhook_url:
+            release_version = os.getenv("GITHUB_REF_NAME") or "latest"
+            role_tags = _parse_role_tags(args.discord_role_tag, args.discord_role_tags)
+            _send_discord_changelog(
+            webhook_url=normalized_webhook_url,
+                role_tags=role_tags,
+                organization=args.organization,
+                repo_name=args.repo_name,
+                version=release_version,
+                changelog_path=args.file_name,
+            )
     except Exception as error:
         print(f"Error generating changelog: {error}")
         raise
