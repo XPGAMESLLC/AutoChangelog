@@ -143,7 +143,7 @@ def _summarize_changes_with_claude(
 
     try:
         client = Anthropic(api_key=api_key)
-        
+
         response = client.messages.create(
             model=ai_model,
             max_tokens=500,
@@ -151,7 +151,6 @@ def _summarize_changes_with_claude(
             messages=[
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.2,
         )
     except Exception as error:
         print(f"AI summary failed: {str(error)[:500]}. Continuing without AI summary.")
@@ -193,8 +192,16 @@ def _send_discord_changelog(
     header = "\n".join(header_lines)
     role_footer = " ".join(role_tags).strip()
 
-    # Discord webhook text limit is 2000 chars; keep headroom to avoid edge errors.
-    max_len = 1900
+    # Discord's hard cap is 2000 chars. Every chunk gets wrapped in a header
+    # and/or a pagination/role footer, so the split budget must leave room
+    # for whichever wrapping ends up largest, not just the raw chunk text.
+    # `header` is always >= the continuation-chunk prefix (title0 alone), so
+    # sizing against it covers every chunk, not just the first.
+    discord_limit = 2000
+    pagination_buffer = len("\n\n(cont. 9999/9999)")
+    role_footer_overhead = (2 + len(role_footer)) if role_footer else 0
+    max_overhead = len(header) + 2 + pagination_buffer + role_footer_overhead
+    max_len = max(200, discord_limit - max_overhead)
     chunks: list[str] = []
     remaining = changelog
     while remaining:
@@ -221,6 +228,9 @@ def _send_discord_changelog(
 
         if role_footer and index == total:
             content = f"{content}\n\n{role_footer}".strip()
+
+        if len(content) > discord_limit:
+            content = content[: discord_limit - 3].rstrip() + "..."
 
         payload = json.dumps({"content": content}).encode("utf-8")
         request = urllib.request.Request(
